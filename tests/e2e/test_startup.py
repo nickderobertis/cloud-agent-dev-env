@@ -18,17 +18,17 @@ def run_cmd(argv: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess
     )
 
 
-def minimal_path(tmp_path: Path, *, include_gh: bool = False) -> Path:
+def minimal_path(tmp_path: Path, *, tools: tuple[str, ...] = ()) -> Path:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for name in ("bash", "dirname"):
         source = shutil.which(name)
         assert source is not None
         (bin_dir / name).symlink_to(source)
-    if include_gh:
-        gh = bin_dir / "gh"
-        gh.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-        gh.chmod(0o755)
+    for tool in tools:
+        executable = bin_dir / tool
+        executable.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        executable.chmod(0o755)
     return bin_dir
 
 
@@ -66,15 +66,28 @@ def test_session_startup_dry_run_is_clean() -> None:
     assert "ERROR" not in result.stderr
 
 
-def test_live_e2e_fails_when_gh_is_missing(tmp_path: Path) -> None:
-    result = run_live_e2e_with_path(minimal_path(tmp_path))
+def test_live_e2e_fails_when_just_is_missing(tmp_path: Path) -> None:
+    result = run_live_e2e_with_path(
+        minimal_path(tmp_path, tools=("gh", "allowlister", "oneharness"))
+    )
 
     assert result.returncode == 1
-    assert "gh is not installed" in result.stderr
+    assert "required tool(s) missing after bootstrap: just" in result.stderr
+
+
+def test_live_e2e_fails_when_gh_is_missing(tmp_path: Path) -> None:
+    result = run_live_e2e_with_path(
+        minimal_path(tmp_path, tools=("just", "allowlister", "oneharness"))
+    )
+
+    assert result.returncode == 1
+    assert "required tool(s) missing after bootstrap: gh" in result.stderr
 
 
 def test_live_e2e_fails_when_token_is_missing(tmp_path: Path) -> None:
-    result = run_live_e2e_with_path(minimal_path(tmp_path, include_gh=True))
+    result = run_live_e2e_with_path(
+        minimal_path(tmp_path, tools=("just", "gh", "allowlister", "oneharness"))
+    )
 
     assert result.returncode == 1
     assert "no GitHub token env var is set" in result.stderr

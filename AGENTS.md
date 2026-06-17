@@ -60,8 +60,9 @@ Use `just`; do not hand-roll equivalent commands.
   files.
 - Live tests use real boundaries: `gh` against GitHub, `gh skill install` against
   the real skills repo, and `oneharness` detection for Claude Code and Codex.
-  Missing required CLIs should bootstrap first; missing credentials or real
-  service failures fail.
+  CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, so
+  missing required CLIs bootstrap first; missing credentials or real service
+  failures fail.
 - Coverage is enforced at 95% line coverage for the Python package.
 
 ## Commits, releases, and merging

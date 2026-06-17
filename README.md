@@ -31,7 +31,9 @@ Startup installs missing `just`, `gh`, `allowlister`, and `oneharness` into
 ## Live checks
 
 The deterministic gate is credential-free. PRs also run a blocking live e2e job
-with real credentials. To prove the same real external setup locally, run:
+with real credentials. CI invokes `scripts/live-e2e.sh` directly without
+preinstalling `just`, so startup must bootstrap the command surface itself. To
+prove the same real external setup locally, run:
 
 ```console
 just live-e2e
