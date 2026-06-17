@@ -12,10 +12,8 @@ TOKEN_ENV_NAMES = (
     "GITHUB_PAT",
     "GITHUB_PERSONAL_ACCESS_TOKEN",
 )
-PERSISTED_ENV_RELATIVE_PATHS = (
-    Path(".env"),
-    Path(".git") / "cloud-agent-dev-env.env",
-)
+PERSISTED_REPO_ENV_RELATIVE_PATHS = (Path(".env"),)
+PERSISTED_EXTERNAL_ENV_FILE = ".cloud-agent-dev-env.env"
 
 
 def is_codex_cloud(env: Mapping[str, str]) -> bool:
@@ -68,8 +66,21 @@ def write_env_file(path: Path, token: str) -> None:
             tmp_path.unlink()
 
 
-def persisted_env_paths(root: Path) -> tuple[Path, ...]:
-    return tuple(root / rel for rel in PERSISTED_ENV_RELATIVE_PATHS)
+def persisted_env_paths(root: Path, env: Mapping[str, str]) -> tuple[Path, ...]:
+    paths = [root / rel for rel in PERSISTED_REPO_ENV_RELATIVE_PATHS]
+    paths.append(root.parent / PERSISTED_EXTERNAL_ENV_FILE)
+    home = env.get("HOME")
+    if home:
+        paths.append(Path(home).expanduser() / PERSISTED_EXTERNAL_ENV_FILE)
+
+    deduped: list[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            deduped.append(path)
+    return tuple(deduped)
 
 
 def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
@@ -82,7 +93,7 @@ def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
     if "\n" in token or "\r" in token:
         raise RuntimeError("refusing to persist multiline GitHub token")
 
-    for path in persisted_env_paths(root):
+    for path in persisted_env_paths(root, env):
         write_env_file(path, token)
     return True
 

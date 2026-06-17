@@ -8,7 +8,7 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-persist-token-env"
+export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-external-token-env"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
 export PATH="$ROOT/.local/bin:$PATH"
 if [ -n "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ]; then

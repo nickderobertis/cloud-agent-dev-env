@@ -105,6 +105,7 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     )
 
     marker = tmp_path / "uv-ran"
+    home = tmp_path / "home"
     bin_dir = minimal_path(tmp_path)
     python3 = shutil.which("python3")
     assert python3 is not None
@@ -112,12 +113,13 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     uv = bin_dir / "uv"
     uv.write_text(
         "#!/usr/bin/env bash\n"
-        'printf \'%s\' "$GH_CONFIG_DIR" > "$SESSION_SETUP_MARKER"\n',
+        'printf \'%s\' "${GH_CONFIG_DIR:-<unset>}" > "$SESSION_SETUP_MARKER"\n',
         encoding="utf-8",
     )
     uv.chmod(0o755)
     env = {
         "PATH": str(bin_dir),
+        "HOME": str(home),
         "CI": "1",
         "CODEX_CI": "1",
         "GH_TOKEN": "ghp_test_secret",
@@ -137,7 +139,10 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert marker.read_text(encoding="utf-8") == str(repo / ".local" / "gh")
     assert (repo / ".env").read_text(encoding="utf-8") == "GH_TOKEN='ghp_test_secret'\n"
-    assert (repo / ".git" / "cloud-agent-dev-env.env").read_text(
+    assert (repo.parent / ".cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='ghp_test_secret'\n"
+    assert (home / ".cloud-agent-dev-env.env").read_text(
         encoding="utf-8"
     ) == "GH_TOKEN='ghp_test_secret'\n"
 
