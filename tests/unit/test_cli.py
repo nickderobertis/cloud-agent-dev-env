@@ -20,6 +20,7 @@ def test_env_files_do_not_override_existing_values(tmp_path: Path) -> None:
     assert loaded["GH_TOKEN"] == "from-env"
     assert loaded["GITHUB_PAT"] == "pat"
     assert loaded["OPENAI_API_KEY"] == "api"
+    assert str(tmp_path / ".local" / "bin") in loaded["PATH"]
 
 
 def test_github_token_priority() -> None:
@@ -100,7 +101,7 @@ def test_require_and_ensure_optional_tool(
 
     runner.run = fake_run  # type: ignore[method-assign]
 
-    monkeypatch.setattr(cli.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli.shutil, "which", lambda name, **_kwargs: f"/bin/{name}")
     assert cli.require_tool("gh") == "/bin/gh"
     cli.ensure_optional_tool(
         "oneharness",
@@ -112,7 +113,15 @@ def test_require_and_ensure_optional_tool(
     )
     assert calls == []
 
-    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+    which_calls = {"count": 0}
+
+    def fake_which(name: str, **_kwargs: object) -> str | None:
+        which_calls["count"] += 1
+        return (
+            None if which_calls["count"] <= len(cli.REQUIRED_TOOLS) else f"/bin/{name}"
+        )
+
+    monkeypatch.setattr(cli.shutil, "which", fake_which)
     with pytest.raises(RuntimeError, match="gh is required"):
         cli.require_tool("gh")
     with pytest.raises(RuntimeError, match="Rerun with --install-missing"):
@@ -195,7 +204,7 @@ def test_install_skills_calls_gh_for_each_agent(
         calls.append(tuple(argv))
         return cli.CommandResult(tuple(argv), 0, "", "")
 
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
     monkeypatch.setattr(
         cli,
         "discover_skill_specs",
@@ -251,7 +260,7 @@ def test_install_skills_local_without_force_and_empty_specs(
         return cli.CommandResult(tuple(argv), 0, "", "")
 
     runner.run = fake_run  # type: ignore[method-assign]
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
     monkeypatch.setattr(
         cli, "discover_skill_specs", lambda *_args, **_kwargs: ["bootstrap/demo"]
     )
@@ -283,7 +292,7 @@ def test_setup_gh_auth_uses_token_without_printing_it(
     calls: list[tuple[tuple[str, ...], str | None]] = []
     runner = cli.Runner()
 
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
 
     def fake_run(
         argv: list[str],
@@ -307,7 +316,7 @@ def test_setup_gh_auth_errors_without_token(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runner = cli.Runner()
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
 
     def fake_run(*_args: object, **_kwargs: object) -> cli.CommandResult:
         return cli.CommandResult(("gh",), 1, "", "")
@@ -322,7 +331,7 @@ def test_setup_gh_auth_returns_when_already_authenticated(
 ) -> None:
     runner = cli.Runner()
     calls: list[tuple[str, ...]] = []
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
 
     def fake_run(argv: list[str], **_kwargs: object) -> cli.CommandResult:
         calls.append(tuple(argv))
@@ -343,12 +352,8 @@ def test_setup_allowlists_and_tools_and_detect(
         calls.append(tuple(argv))
         return cli.CommandResult(tuple(argv), 0, "{}", "")
 
-    def fake_ensure(name: str, install_argv: list[str], **_kwargs: object) -> None:
-        calls.append((name, *install_argv))
-
     runner.run = fake_run  # type: ignore[method-assign]
-    monkeypatch.setattr(cli, "require_tool", lambda name: f"/bin/{name}")
-    monkeypatch.setattr(cli, "ensure_optional_tool", fake_ensure)
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
 
     cli.setup_allowlists(
         agents=("claude-code", "codex"), runner=runner, root=tmp_path, env={}
@@ -360,8 +365,22 @@ def test_setup_allowlists_and_tools_and_detect(
         for call in calls
     )
 
-    cli.setup_tools(runner=runner, root=tmp_path, env={}, install_missing=True)
-    assert any(call[0] == "oneharness" for call in calls)
+    which_calls = {"count": 0}
+
+    def fake_which(name: str, **_kwargs: object) -> str | None:
+        which_calls["count"] += 1
+        return (
+            None if which_calls["count"] <= len(cli.REQUIRED_TOOLS) else f"/bin/{name}"
+        )
+
+    monkeypatch.setattr(cli.shutil, "which", fake_which)
+    cli.setup_tools(
+        runner=runner, root=tmp_path, env={"PATH": ""}, install_missing=True
+    )
+    assert any(
+        call[:2] == ("python3", str(tmp_path / "scripts" / "bootstrap_tools.py"))
+        for call in calls
+    )
     assert (
         cli.run_oneharness_detect(runner=runner, root=tmp_path, env={}).stdout == "{}"
     )
@@ -431,11 +450,11 @@ def test_doctor_human_missing_and_ok(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     args = cli.build_parser().parse_args(["doctor", "--repo-root", str(tmp_path)])
-    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cli.shutil, "which", lambda _name, **_kwargs: None)
     assert cli.doctor(args) == 1
     assert "missing tools" in capsys.readouterr().err
 
-    monkeypatch.setattr(cli.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(cli.shutil, "which", lambda name, **_kwargs: f"/bin/{name}")
     assert cli.doctor(args) == 0
     assert "doctor: ok" in capsys.readouterr().out
 

@@ -1,6 +1,9 @@
 name: live
 
 on:
+  pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "17 10 * * *"
@@ -20,11 +23,6 @@ jobs:
 
       - uses: extractions/setup-just@v2
 
-      - name: Install oneharness and allowlister
-        run: |
-          cargo install --git https://github.com/nickderobertis/oneharness --locked
-          cargo install allowlister --locked
-
       - name: Bootstrap
         run: just bootstrap
 
@@ -35,4 +33,3 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: just live-e2e
-

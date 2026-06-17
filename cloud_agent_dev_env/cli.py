@@ -21,6 +21,7 @@ TOKEN_ENV_NAMES = (
     "GITHUB_PAT",
     "GITHUB_PERSONAL_ACCESS_TOKEN",
 )
+REQUIRED_TOOLS = ("just", "gh", "allowlister", "oneharness")
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,12 @@ def strip_env_quotes(value: str) -> str:
 
 def session_env(root: Path, base: Mapping[str, str] | None = None) -> dict[str, str]:
     env = dict(base or os.environ)
+    local_bin = str(root / ".local" / "bin")
+    current_path = env.get("PATH", "")
+    if local_bin not in current_path.split(os.pathsep):
+        env["PATH"] = (
+            local_bin + os.pathsep + current_path if current_path else local_bin
+        )
     load_env_file(root / ".env", env)
     load_env_file(root / ".env.local", env)
     return env
@@ -124,8 +131,8 @@ def env_with_gh_token(env: Mapping[str, str]) -> dict[str, str]:
     return out
 
 
-def require_tool(name: str) -> str:
-    path = shutil.which(name)
+def require_tool(name: str, env: Mapping[str, str] | None = None) -> str:
+    path = shutil.which(name, path=env.get("PATH") if env else None)
     if path is None:
         raise RuntimeError(f"{name} is required. Install it, then rerun setup.")
     return path
@@ -140,7 +147,7 @@ def ensure_optional_tool(
     env: Mapping[str, str],
     install_missing: bool,
 ) -> None:
-    if shutil.which(name) is not None:
+    if shutil.which(name, path=env.get("PATH")) is not None:
         return
     if not install_missing:
         raise RuntimeError(f"{name} is required. Rerun with --install-missing.")
@@ -148,7 +155,7 @@ def ensure_optional_tool(
 
 
 def setup_gh_auth(*, runner: Runner, root: Path, env: Mapping[str, str]) -> None:
-    require_tool("gh")
+    require_tool("gh", env)
     gh_env = env_with_gh_token(env)
     status = runner.run(
         ["gh", "auth", "status"],
@@ -237,7 +244,7 @@ def install_skills(
     env: Mapping[str, str],
     force: bool = True,
 ) -> list[str]:
-    require_tool("gh")
+    require_tool("gh", env)
     specs = discover_skill_specs(repo, runner=runner, root=root, env=env)
     if not specs:
         raise RuntimeError(f"no skills found in {repo}")
@@ -270,7 +277,7 @@ def setup_allowlists(
     root: Path,
     env: Mapping[str, str],
 ) -> None:
-    require_tool("allowlister")
+    require_tool("allowlister", env)
     harnesses = {"claude-code", "codex"}
     for agent in agents:
         if agent not in harnesses:
@@ -300,28 +307,28 @@ def setup_tools(
     env: Mapping[str, str],
     install_missing: bool,
 ) -> None:
-    ensure_optional_tool(
-        "oneharness",
-        [
-            "cargo",
-            "install",
-            "--git",
-            "https://github.com/nickderobertis/oneharness",
-            "--locked",
-        ],
-        runner=runner,
-        root=root,
-        env=env,
-        install_missing=install_missing,
-    )
-    ensure_optional_tool(
-        "allowlister",
-        ["cargo", "install", "allowlister", "--locked"],
-        runner=runner,
-        root=root,
-        env=env,
-        install_missing=install_missing,
-    )
+    missing = [
+        tool
+        for tool in REQUIRED_TOOLS
+        if shutil.which(tool, path=env.get("PATH")) is None
+    ]
+    if missing and install_missing:
+        installer = root / "scripts" / "bootstrap_tools.py"
+        runner.run(
+            ["python3", str(installer), "--repo-root", str(root), "--quiet"],
+            cwd=root,
+            env=env,
+        )
+        missing = [
+            tool
+            for tool in REQUIRED_TOOLS
+            if shutil.which(tool, path=env.get("PATH")) is None
+        ]
+    if missing:
+        joined = ", ".join(missing)
+        raise RuntimeError(
+            f"missing required tool(s): {joined}. Rerun setup with network access."
+        )
 
 
 def run_oneharness_detect(
@@ -330,7 +337,7 @@ def run_oneharness_detect(
     root: Path,
     env: Mapping[str, str],
 ) -> CommandResult:
-    require_tool("oneharness")
+    require_tool("oneharness", env)
     return runner.run(
         ["oneharness", "detect", "--harness", "claude-code,codex"],
         cwd=root,
@@ -385,7 +392,7 @@ def doctor(args: argparse.Namespace) -> int:
     root = repo_root_from(args.repo_root)
     env = session_env(root)
     tool_names = ["gh", "gh-secrets", "oneharness", "allowlister", "uv", "just"]
-    tools = {name: shutil.which(name) for name in tool_names}
+    tools = {name: shutil.which(name, path=env.get("PATH")) for name in tool_names}
     data = {
         "repo_root": str(root),
         "version": __version__,
