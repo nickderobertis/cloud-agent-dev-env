@@ -43,13 +43,14 @@ Use `just`; do not hand-roll equivalent commands.
 
 - `scripts/session-setup.sh` is the single startup entry point. Claude Code and
   Codex hook wrappers both call it.
-- Startup authenticates `gh` from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`, or
-  `GITHUB_PERSONAL_ACCESS_TOKEN`, installs skills from
-  `nickderobertis/dero-skills` for Claude Code and Codex, and registers local
+- Startup installs missing `just`, `gh`, `allowlister`, and `oneharness` into
+  `.local/bin`; authenticates `gh` from `GH_TOKEN`, `GITHUB_TOKEN`,
+  `GITHUB_PAT`, or `GITHUB_PERSONAL_ACCESS_TOKEN`; installs skills from
+  `nickderobertis/dero-skills` for Claude Code and Codex; and registers local
   allowlister hooks for both.
 - Hooks stay non-blocking: a missing token or network failure should warn and
-  let the agent session continue. Strict failures belong in explicit commands
-  such as `just setup-session` and `just live-e2e`.
+  let the agent session continue. Strict real-environment failures belong in
+  explicit checks such as `just live-e2e`.
 
 ## Quality and tests
 
@@ -58,7 +59,8 @@ Use `just`; do not hand-roll equivalent commands.
   files.
 - Live tests use real boundaries: `gh` against GitHub, `gh skill install` against
   the real skills repo, and `oneharness` detection for Claude Code and Codex.
-  Missing credentials or CLIs skip; real failures fail.
+  Missing required CLIs should bootstrap first; missing credentials or real
+  service failures fail.
 - Coverage is enforced at 95% line coverage for the Python package.
 
 ## Commits, releases, and merging
@@ -78,4 +80,3 @@ Use `just`; do not hand-roll equivalent commands.
   session.
 - Dangerous operations such as destructive deletes, history rewrites, secret
   reads, repository deletion, and publishing stay out of direct allows.
-

@@ -9,10 +9,21 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
+export PATH="$ROOT/.local/bin:$PATH"
+
+if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$ROOT/scripts/bootstrap_tools.py" --repo-root "$ROOT" --quiet || {
+            echo "WARNING: tool bootstrap failed; continuing with available tools" >&2
+        }
+    else
+        echo "WARNING: python3 is required to install missing tools automatically" >&2
+    fi
+fi
 
 if ! command -v uv >/dev/null 2>&1; then
     echo "WARNING: uv is required for session setup; install uv and rerun scripts/session-setup.sh" >&2
     exit 0
 fi
 
-uv run cloud-agent-dev-env setup --repo-root "$ROOT" --quiet --non-blocking "$@"
+uv run cloud-agent-dev-env setup --repo-root "$ROOT" --quiet --install-missing --non-blocking "$@"

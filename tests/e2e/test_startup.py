@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -11,8 +12,40 @@ ROOT = Path(__file__).resolve().parents[2]
 def run_cmd(argv: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["UV_CACHE_DIR"] = str(ROOT / ".cache" / "uv")
+    env["CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP"] = "1"
     return subprocess.run(
         argv, cwd=cwd, env=env, text=True, capture_output=True, check=False
+    )
+
+
+def minimal_path(tmp_path: Path, *, include_gh: bool = False) -> Path:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name in ("bash", "dirname"):
+        source = shutil.which(name)
+        assert source is not None
+        (bin_dir / name).symlink_to(source)
+    if include_gh:
+        gh = bin_dir / "gh"
+        gh.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        gh.chmod(0o755)
+    return bin_dir
+
+
+def run_live_e2e_with_path(path: Path) -> subprocess.CompletedProcess[str]:
+    env = {
+        "PATH": str(path),
+        "UV_CACHE_DIR": str(ROOT / ".cache" / "uv"),
+        "CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP": "1",
+        "CLOUD_AGENT_DEV_ENV_SKIP_ENV_FILE": "1",
+    }
+    return subprocess.run(
+        [str(ROOT / "scripts" / "live-e2e.sh")],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
     )
 
 
@@ -31,6 +64,20 @@ def test_session_startup_dry_run_is_clean() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "ERROR" not in result.stderr
+
+
+def test_live_e2e_fails_when_gh_is_missing(tmp_path: Path) -> None:
+    result = run_live_e2e_with_path(minimal_path(tmp_path))
+
+    assert result.returncode == 1
+    assert "gh is not installed" in result.stderr
+
+
+def test_live_e2e_fails_when_token_is_missing(tmp_path: Path) -> None:
+    result = run_live_e2e_with_path(minimal_path(tmp_path, include_gh=True))
+
+    assert result.returncode == 1
+    assert "no GitHub token env var is set" in result.stderr
 
 
 def test_local_skill_install_uses_real_gh_skill(tmp_path: Path) -> None:

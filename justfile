@@ -55,3 +55,6 @@ upgrade:
 
 doctor:
     uv run cloud-agent-dev-env doctor
+
+bootstrap-tools:
+    python3 scripts/bootstrap_tools.py
