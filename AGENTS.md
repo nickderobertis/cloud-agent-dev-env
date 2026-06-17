@@ -78,8 +78,9 @@ Use `just`; do not hand-roll equivalent commands.
 - The deterministic gate must stay credential-free and offline-capable. It
   drives the installed CLI and shell wrappers as subprocesses and uses real temp
   files.
-- Live tests use real boundaries: `gh` against GitHub, `gh skill install` against
-  the real skills repo, and `oneharness` detection for Claude Code and Codex.
+- Live tests use real boundaries: `gh` against GitHub, access to a private repo
+  outside `nickderobertis/cloud-agent-dev-env`, `gh skill install` against the
+  real skills repo, and `oneharness` detection for Claude Code and Codex.
   CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, and
   the live job must simulate Codex Cloud by running `scripts/session-setup.sh`
   with `GH_TOKEN` and then unsetting all GitHub token env vars before the direct

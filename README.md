@@ -39,7 +39,8 @@ prove the same real external setup locally, run:
 just live-e2e
 ```
 
-That uses the real `gh` CLI, `gh skill install`, and `oneharness`. It bootstraps
+That uses the real `gh` CLI, verifies access to a private repo outside this
+checkout, runs `gh skill install`, and invokes `oneharness`. It bootstraps
 missing required CLIs first. In Codex Cloud, secrets are setup-only: they are
 available to `scripts/session-setup.sh` and removed before the agent phase. The
 setup path therefore logs `gh` in from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`,
