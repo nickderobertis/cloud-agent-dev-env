@@ -44,10 +44,12 @@ missing required CLIs first. In Codex Cloud, secrets are setup-only: they are
 available to `scripts/session-setup.sh` and removed before the agent phase. The
 setup path therefore logs `gh` in from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`,
 or `GITHUB_PERSONAL_ACCESS_TOKEN` and persists the auth state for later direct
-agent commands such as `scripts/live-e2e.sh`. In Codex Cloud, `GH_CONFIG_DIR`
-is set to `.local/gh` so setup and the later agent phase read the same persisted
-GitHub CLI auth files and do not silently fall back to Codex Cloud's checkout
-credential. Setup also writes the GitHub token with `0600` permissions to
+agent commands such as `scripts/live-e2e.sh`. Startup sets `GH_CONFIG_DIR` to
+`.local/gh` so setup and the later agent phase read the same persisted GitHub CLI
+auth files and do not silently fall back to Codex Cloud's checkout credential.
+This is done in the setup script itself because Codex agent-phase markers are
+not guaranteed to exist during environment setup. Setup also writes the GitHub
+token with `0600` permissions to
 `.local/state/cloud-agent-dev-env.env`, ignored `.env`, the workspace parent
 `.cloud-agent-dev-env.env`, and `$HOME/.cloud-agent-dev-env.env`. The
 `.local/state` copy is the primary setup-to-agent handoff because `.local/`
