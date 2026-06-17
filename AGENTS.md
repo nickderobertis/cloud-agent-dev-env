@@ -53,7 +53,9 @@ Use `just`; do not hand-roll equivalent commands.
   not expect `GH_TOKEN` to be present when an agent later runs terminal
   commands. Setup must persist `gh` authentication while the secret is available;
   this repo sets `GH_CONFIG_DIR` to `.local/gh` in Codex Cloud so setup and the
-  later agent phase share the same GitHub CLI auth files. If credentials change,
+  later agent phase share the same GitHub CLI auth files. Setup also writes the
+  GitHub token to ignored `.env` with `0600` permissions so direct agent commands
+  can read it after setup-only cloud secrets are removed. If credentials change,
   save the Codex Cloud environment and reset/invalidate the cache so setup runs
   again.
 - Hooks stay non-blocking: a missing token or network failure should warn and

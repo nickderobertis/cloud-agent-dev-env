@@ -8,11 +8,21 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-run-in-codex-cloud"
+export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-persist-token-env"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
 export PATH="$ROOT/.local/bin:$PATH"
 if [ -n "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ]; then
     export GH_CONFIG_DIR="${GH_CONFIG_DIR:-$ROOT/.local/gh}"
+fi
+
+if [ -n "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$ROOT/scripts/persist_setup_env.py" --repo-root "$ROOT" || {
+            echo "WARNING: failed to persist setup GitHub token for the agent phase" >&2
+        }
+    else
+        echo "WARNING: python3 is required to persist setup GitHub token" >&2
+    fi
 fi
 
 if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
