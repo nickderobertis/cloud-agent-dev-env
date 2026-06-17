@@ -114,6 +114,10 @@ def session_env(root: Path, base: Mapping[str, str] | None = None) -> dict[str, 
         "GH_CONFIG_DIR"
     ):
         env["GH_CONFIG_DIR"] = str(root / ".local" / "gh")
+    load_env_file(root.parent / ".cloud-agent-dev-env.env", env)
+    home = env.get("HOME")
+    if home:
+        load_env_file(Path(home).expanduser() / ".cloud-agent-dev-env.env", env)
     load_env_file(root / ".git" / "cloud-agent-dev-env.env", env)
     load_env_file(root / ".env", env)
     load_env_file(root / ".env.local", env)
