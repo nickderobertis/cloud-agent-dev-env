@@ -23,14 +23,19 @@ def test_env_files_do_not_override_existing_values(tmp_path: Path) -> None:
     assert str(tmp_path / ".local" / "bin") in loaded["PATH"]
 
 
-def test_session_env_loads_hidden_git_env_before_ignored_env(tmp_path: Path) -> None:
+def test_session_env_prefers_local_state_env_before_fallback_env_files(
+    tmp_path: Path,
+) -> None:
     external_env = tmp_path.parent / ".cloud-agent-dev-env.env"
     external_env.write_text("GH_TOKEN=from-external-env\n", encoding="utf-8")
+    local_state_env = tmp_path / ".local" / "state" / "cloud-agent-dev-env.env"
+    local_state_env.parent.mkdir(parents=True)
+    local_state_env.write_text("GH_TOKEN=from-local-state-env\n", encoding="utf-8")
     (tmp_path / ".env").write_text("GH_TOKEN=from-env\n", encoding="utf-8")
 
     loaded = cli.session_env(tmp_path, {"PATH": "/usr/bin"})
 
-    assert loaded["GH_TOKEN"] == "from-external-env"
+    assert loaded["GH_TOKEN"] == "from-local-state-env"
 
 
 @pytest.mark.parametrize("env_key", ["CODEX_CI", "CODEX_THREAD_ID"])

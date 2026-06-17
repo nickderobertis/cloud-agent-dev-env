@@ -34,6 +34,12 @@ if [ "${CLOUD_AGENT_DEV_ENV_SKIP_ENV_FILE:-0}" != "1" ] && [ -n "${HOME:-}" ] &&
     . "$HOME/.cloud-agent-dev-env.env"
     set +a
 fi
+if [ "${CLOUD_AGENT_DEV_ENV_SKIP_ENV_FILE:-0}" != "1" ] && [ -f "$ROOT/.local/state/cloud-agent-dev-env.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$ROOT/.local/state/cloud-agent-dev-env.env"
+    set +a
+fi
 
 if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
     if command -v python3 >/dev/null 2>&1; then

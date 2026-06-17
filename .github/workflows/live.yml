@@ -30,8 +30,30 @@ jobs:
 
       - name: Live e2e
         env:
+          CODEX_CI: "1"
+          CODEX_THREAD_ID: live-e2e
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: scripts/live-e2e.sh
+        run: |
+          scripts/session-setup.sh
+
+          if ! test -f .local/state/setup-env-status.txt; then
+            echo "ERROR: setup did not write .local/state/setup-env-status.txt." >&2
+            exit 1
+          fi
+          if ! grep -qx "github_token_present=yes" .local/state/setup-env-status.txt; then
+            echo "ERROR: GH_TOKEN was not visible during the simulated Codex Cloud setup phase." >&2
+            exit 1
+          fi
+          if ! grep -qx "github_token_persisted=yes" .local/state/setup-env-status.txt; then
+            echo "ERROR: setup did not persist GH_TOKEN for the agent phase." >&2
+            exit 1
+          fi
+          if ! test -f .local/state/cloud-agent-dev-env.env; then
+            echo "ERROR: setup did not write .local/state/cloud-agent-dev-env.env." >&2
+            exit 1
+          fi
+
+          env -u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_PAT -u GITHUB_PERSONAL_ACCESS_TOKEN scripts/live-e2e.sh
