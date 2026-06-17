@@ -12,6 +12,10 @@ TOKEN_ENV_NAMES = (
     "GITHUB_PAT",
     "GITHUB_PERSONAL_ACCESS_TOKEN",
 )
+PERSISTED_ENV_RELATIVE_PATHS = (
+    Path(".env"),
+    Path(".git") / "cloud-agent-dev-env.env",
+)
 
 
 def is_codex_cloud(env: Mapping[str, str]) -> bool:
@@ -45,6 +49,29 @@ def is_token_line(line: str) -> bool:
     return any(stripped.startswith(f"{name}=") for name in TOKEN_ENV_NAMES)
 
 
+def write_env_file(path: Path, token: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    kept = [line for line in lines if not is_token_line(line)]
+    kept.append(f"GH_TOKEN={shell_quote(token)}")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    old_umask = os.umask(0o177)
+    try:
+        tmp_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        tmp_path.chmod(0o600)
+        tmp_path.replace(path)
+        path.chmod(0o600)
+    finally:
+        os.umask(old_umask)
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def persisted_env_paths(root: Path) -> tuple[Path, ...]:
+    return tuple(root / rel for rel in PERSISTED_ENV_RELATIVE_PATHS)
+
+
 def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
     if not is_codex_cloud(env) or not persistence_enabled(env):
         return False
@@ -55,24 +82,8 @@ def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
     if "\n" in token or "\r" in token:
         raise RuntimeError("refusing to persist multiline GitHub token")
 
-    env_path = root / ".env"
-    lines = (
-        env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
-    )
-    kept = [line for line in lines if not is_token_line(line)]
-    kept.append(f"GH_TOKEN={shell_quote(token)}")
-
-    tmp_path = root / ".env.tmp"
-    old_umask = os.umask(0o177)
-    try:
-        tmp_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
-        tmp_path.chmod(0o600)
-        tmp_path.replace(env_path)
-        env_path.chmod(0o600)
-    finally:
-        os.umask(old_umask)
-        if tmp_path.exists():
-            tmp_path.unlink()
+    for path in persisted_env_paths(root):
+        write_env_file(path, token)
     return True
 
 
