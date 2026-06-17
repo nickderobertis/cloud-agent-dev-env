@@ -110,6 +110,8 @@ def session_env(root: Path, base: Mapping[str, str] | None = None) -> dict[str, 
         env["PATH"] = (
             local_bin + os.pathsep + current_path if current_path else local_bin
         )
+    if env.get("CODEX_CI") and not env.get("GH_CONFIG_DIR"):
+        env["GH_CONFIG_DIR"] = str(root / ".local" / "gh")
     load_env_file(root / ".env", env)
     load_env_file(root / ".env.local", env)
     return env
@@ -163,6 +165,8 @@ def ensure_optional_tool(
 
 def setup_gh_auth(*, runner: Runner, root: Path, env: Mapping[str, str]) -> None:
     require_tool("gh", env)
+    if env.get("GH_CONFIG_DIR"):
+        Path(env["GH_CONFIG_DIR"]).mkdir(parents=True, exist_ok=True)
     persisted_auth_env = env_without_gh_token(env)
     status = runner.run(
         ["gh", "auth", "status"],

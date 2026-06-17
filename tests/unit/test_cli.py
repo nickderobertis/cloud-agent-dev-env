@@ -23,6 +23,21 @@ def test_env_files_do_not_override_existing_values(tmp_path: Path) -> None:
     assert str(tmp_path / ".local" / "bin") in loaded["PATH"]
 
 
+def test_codex_cloud_session_env_uses_repo_local_gh_config(tmp_path: Path) -> None:
+    loaded = cli.session_env(tmp_path, {"CODEX_CI": "1", "PATH": "/usr/bin"})
+
+    assert loaded["GH_CONFIG_DIR"] == str(tmp_path / ".local" / "gh")
+
+
+def test_session_env_preserves_existing_gh_config_dir(tmp_path: Path) -> None:
+    loaded = cli.session_env(
+        tmp_path,
+        {"CODEX_CI": "1", "GH_CONFIG_DIR": "/tmp/custom-gh", "PATH": "/usr/bin"},
+    )
+
+    assert loaded["GH_CONFIG_DIR"] == "/tmp/custom-gh"
+
+
 def test_github_token_priority() -> None:
     assert cli.github_token({"GITHUB_TOKEN": "a", "GH_TOKEN": "b"}) == "b"
     assert cli.github_token({"GITHUB_PAT": "c"}) == "c"
@@ -309,12 +324,27 @@ def test_setup_gh_auth_uses_token_without_printing_it(
 
     runner.run = fake_run  # type: ignore[method-assign]
 
-    cli.setup_gh_auth(runner=runner, root=tmp_path, env={"GITHUB_PAT": "secret"})
+    gh_config_dir = tmp_path / ".local" / "gh"
+    cli.setup_gh_auth(
+        runner=runner,
+        root=tmp_path,
+        env={"GITHUB_PAT": "secret", "GH_CONFIG_DIR": str(gh_config_dir)},
+    )
 
     assert calls[0][0] == ("gh", "auth", "status")
     assert "GITHUB_PAT" not in calls[0][2]
-    assert calls[1] == (("gh", "auth", "login", "--with-token"), "secret", {})
-    assert calls[2] == (("gh", "auth", "setup-git"), None, {})
+    assert calls[0][2]["GH_CONFIG_DIR"] == str(gh_config_dir)
+    assert calls[1] == (
+        ("gh", "auth", "login", "--with-token"),
+        "secret",
+        {"GH_CONFIG_DIR": str(gh_config_dir)},
+    )
+    assert calls[2] == (
+        ("gh", "auth", "setup-git"),
+        None,
+        {"GH_CONFIG_DIR": str(gh_config_dir)},
+    )
+    assert gh_config_dir.is_dir()
 
 
 def test_setup_gh_auth_persists_setup_only_cloud_secret(

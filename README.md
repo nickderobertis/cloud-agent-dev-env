@@ -44,10 +44,12 @@ missing required CLIs first. In Codex Cloud, secrets are setup-only: they are
 available to `scripts/session-setup.sh` and removed before the agent phase. The
 setup path therefore logs `gh` in from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`,
 or `GITHUB_PERSONAL_ACCESS_TOKEN` and persists the auth state for later direct
-agent commands such as `scripts/live-e2e.sh`. If a cloud task cannot authenticate
-after adding or changing a secret, save the environment and reset the container
-cache so setup runs again. Missing credentials, authentication failures, or API
-failures fail there.
+agent commands such as `scripts/live-e2e.sh`. In Codex Cloud, `GH_CONFIG_DIR`
+is set to `.local/gh` so setup and the later agent phase read the same persisted
+GitHub CLI auth files. If a cloud task cannot authenticate after adding or
+changing a secret, save the environment and reset the container cache so setup
+runs again. Missing credentials, authentication failures, or API failures fail
+there.
 
 ## Secrets
 
