@@ -1,0 +1,20 @@
+.cache/
+.coverage
+.env
+.env.local
+.gh-secrets-state.json
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+build/
+dist/
+htmlcov/
+*.egg-info/
+
+# BEGIN agent-skills (managed by startup; do not edit by hand)
+.agents/skills/
+.claude/skills/
+# END agent-skills
+

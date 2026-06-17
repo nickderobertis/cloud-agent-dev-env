@@ -1,0 +1,38 @@
+name: live
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 10 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-e2e:
+    if: github.repository == 'nickderobertis/cloud-agent-dev-env'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: extractions/setup-just@v2
+
+      - name: Install oneharness and allowlister
+        run: |
+          cargo install --git https://github.com/nickderobertis/oneharness --locked
+          cargo install allowlister --locked
+
+      - name: Bootstrap
+        run: just bootstrap
+
+      - name: Live e2e
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: just live-e2e
+
