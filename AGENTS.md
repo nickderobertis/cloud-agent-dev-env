@@ -27,7 +27,8 @@ Use `just`; do not hand-roll equivalent commands.
 - `just bootstrap` sets up the dev environment from a clean clone.
 - `just check` is the full gate: format check, lint, type check, unit tests, and
   deterministic e2e.
-- `just live-e2e` is opt-in and uses real GitHub and agent-harness credentials.
+- `just live-e2e` is a blocking PR check and uses real GitHub and agent-harness
+  credentials.
 - `just setup-session` runs the same startup path the agent hooks call.
 - `just secrets-sync` syncs the repo secret manifest with `gh-secrets`.
 
@@ -66,8 +67,8 @@ Use `just`; do not hand-roll equivalent commands.
 ## Commits, releases, and merging
 
 - Main is protected and only takes squash-merged PRs. Branch protection requires
-  the `check` workflow job and conversation resolution; admins may override for
-  emergencies.
+  `check (ubuntu-latest)`, `check (macos-latest)`, `live-e2e`, and conversation
+  resolution; admins may override for emergencies.
 - PRs use `.github/pull_request_template.md`: terse **What** and **Why**. The PR
   title becomes the squash subject.
 - This repo is public as `nickderobertis/cloud-agent-dev-env`.

@@ -30,8 +30,8 @@ Startup installs missing `just`, `gh`, `allowlister`, and `oneharness` into
 
 ## Live checks
 
-The deterministic gate is credential-free. To prove the real external setup,
-run:
+The deterministic gate is credential-free. PRs also run a blocking live e2e job
+with real credentials. To prove the same real external setup locally, run:
 
 ```console
 just live-e2e
