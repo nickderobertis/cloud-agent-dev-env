@@ -84,13 +84,12 @@ def test_live_e2e_fails_when_gh_is_missing(tmp_path: Path) -> None:
     assert "required tool(s) missing after bootstrap: gh" in result.stderr
 
 
-def test_live_e2e_fails_when_token_is_missing(tmp_path: Path) -> None:
+def test_live_e2e_delegates_auth_without_token_env(tmp_path: Path) -> None:
     result = run_live_e2e_with_path(
-        minimal_path(tmp_path, tools=("just", "gh", "allowlister", "oneharness"))
+        minimal_path(tmp_path, tools=("just", "gh", "allowlister", "oneharness", "uv"))
     )
 
-    assert result.returncode == 1
-    assert "no GitHub token env var is set" in result.stderr
+    assert result.returncode == 0, result.stderr
 
 
 def test_local_skill_install_uses_real_gh_skill(tmp_path: Path) -> None:

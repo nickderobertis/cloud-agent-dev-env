@@ -40,8 +40,10 @@ just live-e2e
 ```
 
 That uses the real `gh` CLI, `gh skill install`, and `oneharness`. It bootstraps
-missing required CLIs first; missing credentials, authentication failures, or
-API failures fail.
+missing required CLIs first. Codex Cloud secrets named `GH_TOKEN` are expected
+to appear as normal environment variables, but the shell wrapper delegates auth
+validation to the CLI so pre-authenticated `gh` also works. Missing credentials,
+authentication failures, or API failures fail there.
 
 ## Secrets
 
