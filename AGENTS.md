@@ -52,9 +52,11 @@ Use `just`; do not hand-roll equivalent commands.
 - Codex Cloud secrets are setup-only and are removed before the agent phase. Do
   not expect `GH_TOKEN` to be present when an agent later runs terminal
   commands. Setup must persist `gh` authentication while the secret is available;
-  this repo sets `GH_CONFIG_DIR` to `.local/gh` in Codex Cloud so setup and the
-  later agent phase share the same GitHub CLI auth files and do not silently use
-  Codex Cloud's checkout credential. Setup also writes the
+  the setup script sets `GH_CONFIG_DIR` to `.local/gh` before running the Python
+  setup command so setup and the later agent phase share the same GitHub CLI auth
+  files and do not silently use Codex Cloud's checkout credential. Do not gate
+  setup-phase persistence on `CODEX_CI` or `CODEX_THREAD_ID`; those markers may
+  appear only after environment setup. Setup also writes the
   GitHub token to `.local/state/cloud-agent-dev-env.env` with `0600`
   permissions so direct agent commands can read it after setup-only cloud
   secrets are removed. It also writes fallback copies to ignored `.env`,

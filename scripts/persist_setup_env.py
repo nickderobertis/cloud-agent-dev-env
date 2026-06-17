@@ -25,6 +25,10 @@ def is_codex_cloud(env: Mapping[str, str]) -> bool:
     return bool(env.get("CODEX_CI") or env.get("CODEX_THREAD_ID"))
 
 
+def is_session_setup(env: Mapping[str, str]) -> bool:
+    return bool(env.get("CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT"))
+
+
 def persistence_enabled(env: Mapping[str, str]) -> bool:
     return env.get("CLOUD_AGENT_DEV_ENV_PERSIST_GITHUB_TOKEN", "1").lower() not in {
         "0",
@@ -106,8 +110,12 @@ def write_status_file(root: Path, *, token_present: bool, persisted: bool) -> No
     path.chmod(0o644)
 
 
+def should_persist(env: Mapping[str, str]) -> bool:
+    return persistence_enabled(env) and (is_codex_cloud(env) or is_session_setup(env))
+
+
 def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
-    if not is_codex_cloud(env) or not persistence_enabled(env):
+    if not should_persist(env):
         return False
 
     token = github_token(env)
@@ -132,7 +140,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     persisted = persist_github_token(Path(args.repo_root).resolve(), os.environ)
-    if is_codex_cloud(os.environ) and persistence_enabled(os.environ) and not persisted:
+    if should_persist(os.environ) and not persisted:
         print(
             "WARNING: no supported GitHub token was present during setup; "
             "expected one of GH_TOKEN, GITHUB_TOKEN, GITHUB_PAT, or "

@@ -163,6 +163,59 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     ) == "GH_TOKEN='ghp_test_secret'\n"
 
 
+def test_session_setup_persists_token_before_codex_agent_markers(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    scripts = repo / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy2(ROOT / "scripts" / "session-setup.sh", scripts / "session-setup.sh")
+    shutil.copy2(
+        ROOT / "scripts" / "persist_setup_env.py", scripts / "persist_setup_env.py"
+    )
+
+    marker = tmp_path / "uv-ran"
+    home = tmp_path / "home"
+    bin_dir = minimal_path(tmp_path)
+    python3 = shutil.which("python3")
+    assert python3 is not None
+    (bin_dir / "python3").symlink_to(python3)
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf \'%s\' "${GH_CONFIG_DIR:-<unset>}" > "$SESSION_SETUP_MARKER"\n',
+        encoding="utf-8",
+    )
+    uv.chmod(0o755)
+    env = {
+        "PATH": str(bin_dir),
+        "HOME": str(home),
+        "GH_TOKEN": "ghp_setup_phase_secret",
+        "SESSION_SETUP_MARKER": str(marker),
+        "CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP": "1",
+    }
+
+    result = subprocess.run(
+        [str(scripts / "session-setup.sh"), "--dry-run"],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert marker.read_text(encoding="utf-8") == str(repo / ".local" / "gh")
+    assert (repo / ".local" / "state" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='ghp_setup_phase_secret'\n"
+    status = (repo / ".local" / "state" / "setup-env-status.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "github_token_present=yes" in status
+    assert "github_token_persisted=yes" in status
+
+
 def test_live_e2e_fails_when_just_is_missing(tmp_path: Path) -> None:
     result = run_live_e2e_with_path(
         minimal_path(tmp_path, tools=("gh", "allowlister", "oneharness"))

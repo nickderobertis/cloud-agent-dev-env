@@ -59,9 +59,41 @@ def test_persist_github_token_replaces_existing_token_lines(tmp_path: Path) -> N
     ) == "GH_TOKEN='new_pat'\n"
 
 
+def test_persist_github_token_runs_during_session_setup_without_codex_markers(
+    tmp_path: Path,
+) -> None:
+    env = {
+        "CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT": "test",
+        "GH_TOKEN": "setup_secret",
+    }
+
+    assert persist_setup_env.persist_github_token(tmp_path, env) is True
+
+    assert (tmp_path / ".local" / "state" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='setup_secret'\n"
+    status = (tmp_path / ".local" / "state" / "setup-env-status.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "github_token_present=yes" in status
+    assert "github_token_persisted=yes" in status
+
+
 def test_persist_github_token_writes_status_when_token_missing(tmp_path: Path) -> None:
     assert persist_setup_env.persist_github_token(tmp_path, {"CODEX_CI": "1"}) is False
 
+    status = (tmp_path / ".local" / "state" / "setup-env-status.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "github_token_present=no" in status
+    assert "github_token_persisted=no" in status
+
+    assert (
+        persist_setup_env.persist_github_token(
+            tmp_path, {"CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT": "test"}
+        )
+        is False
+    )
     status = (tmp_path / ".local" / "state" / "setup-env-status.txt").read_text(
         encoding="utf-8"
     )
