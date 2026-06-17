@@ -35,11 +35,6 @@ if [ "${#missing_tools[@]}" -gt 0 ]; then
     exit 1
 fi
 
-if [ -z "${GH_TOKEN:-${GITHUB_TOKEN:-${GITHUB_PAT:-${GITHUB_PERSONAL_ACCESS_TOKEN:-}}}}" ]; then
-    echo "ERROR: no GitHub token env var is set." >&2
-    exit 1
-fi
-
 if ! command -v uv >/dev/null 2>&1; then
     echo "ERROR: uv is required for live e2e." >&2
     exit 1

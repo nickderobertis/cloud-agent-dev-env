@@ -62,7 +62,8 @@ Use `just`; do not hand-roll equivalent commands.
   the real skills repo, and `oneharness` detection for Claude Code and Codex.
   CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, so
   missing required CLIs bootstrap first; missing credentials or real service
-  failures fail.
+  failures fail. Keep GitHub auth validation in the Python CLI, not as a shell
+  env-only precheck, so Codex Cloud secrets and pre-authenticated `gh` both work.
 - Coverage is enforced at 95% line coverage for the Python package.
 
 ## Commits, releases, and merging
