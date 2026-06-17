@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -13,6 +14,10 @@ TOKEN_ENV_NAMES = (
     "GITHUB_PERSONAL_ACCESS_TOKEN",
 )
 PERSISTED_REPO_ENV_RELATIVE_PATHS = (Path(".env"),)
+PERSISTED_LOCAL_STATE_ENV_RELATIVE_PATH = (
+    Path(".local") / "state" / "cloud-agent-dev-env.env"
+)
+SETUP_STATUS_RELATIVE_PATH = Path(".local") / "state" / "setup-env-status.txt"
 PERSISTED_EXTERNAL_ENV_FILE = ".cloud-agent-dev-env.env"
 
 
@@ -68,6 +73,7 @@ def write_env_file(path: Path, token: str) -> None:
 
 def persisted_env_paths(root: Path, env: Mapping[str, str]) -> tuple[Path, ...]:
     paths = [root / rel for rel in PERSISTED_REPO_ENV_RELATIVE_PATHS]
+    paths.append(root / PERSISTED_LOCAL_STATE_ENV_RELATIVE_PATH)
     paths.append(root.parent / PERSISTED_EXTERNAL_ENV_FILE)
     home = env.get("HOME")
     if home:
@@ -83,18 +89,37 @@ def persisted_env_paths(root: Path, env: Mapping[str, str]) -> tuple[Path, ...]:
     return tuple(deduped)
 
 
+def write_status_file(root: Path, *, token_present: bool, persisted: bool) -> None:
+    path = root / SETUP_STATUS_RELATIVE_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(
+            (
+                "codex_cloud_setup_token_persistence=1",
+                f"github_token_present={'yes' if token_present else 'no'}",
+                f"github_token_persisted={'yes' if persisted else 'no'}",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o644)
+
+
 def persist_github_token(root: Path, env: Mapping[str, str]) -> bool:
     if not is_codex_cloud(env) or not persistence_enabled(env):
         return False
 
     token = github_token(env)
     if not token:
+        write_status_file(root, token_present=False, persisted=False)
         return False
     if "\n" in token or "\r" in token:
         raise RuntimeError("refusing to persist multiline GitHub token")
 
     for path in persisted_env_paths(root, env):
         write_env_file(path, token)
+    write_status_file(root, token_present=True, persisted=True)
     return True
 
 
@@ -106,7 +131,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    persist_github_token(Path(args.repo_root).resolve(), os.environ)
+    persisted = persist_github_token(Path(args.repo_root).resolve(), os.environ)
+    if is_codex_cloud(os.environ) and persistence_enabled(os.environ) and not persisted:
+        print(
+            "WARNING: no supported GitHub token was present during setup; "
+            "expected one of GH_TOKEN, GITHUB_TOKEN, GITHUB_PAT, or "
+            "GITHUB_PERSONAL_ACCESS_TOKEN.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 2
     return 0
 
 

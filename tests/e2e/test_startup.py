@@ -49,6 +49,14 @@ def run_live_e2e_with_path(path: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def copy_live_e2e_script(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    scripts = repo / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy2(ROOT / "scripts" / "live-e2e.sh", scripts / "live-e2e.sh")
+    return repo
+
+
 def test_installed_cli_doctor_json() -> None:
     result = run_cmd(["uv", "run", "cloud-agent-dev-env", "doctor", "--json"])
 
@@ -139,6 +147,14 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert marker.read_text(encoding="utf-8") == str(repo / ".local" / "gh")
     assert (repo / ".env").read_text(encoding="utf-8") == "GH_TOKEN='ghp_test_secret'\n"
+    assert (repo / ".local" / "state" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='ghp_test_secret'\n"
+    status = (repo / ".local" / "state" / "setup-env-status.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "github_token_present=yes" in status
+    assert "github_token_persisted=yes" in status
     assert (repo.parent / ".cloud-agent-dev-env.env").read_text(
         encoding="utf-8"
     ) == "GH_TOKEN='ghp_test_secret'\n"
@@ -171,6 +187,60 @@ def test_live_e2e_delegates_auth_without_token_env(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_live_e2e_sources_local_state_token_after_setup_only_secret(
+    tmp_path: Path,
+) -> None:
+    repo = copy_live_e2e_script(tmp_path)
+    state_env = repo / ".local" / "state" / "cloud-agent-dev-env.env"
+    state_env.parent.mkdir(parents=True)
+    state_env.write_text("GH_TOKEN='from-local-state'\n", encoding="utf-8")
+
+    bin_dir = minimal_path(
+        tmp_path,
+        tools=("just", "gh", "allowlister", "oneharness"),
+    )
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [ "${GH_TOKEN:-}" != "from-local-state" ]; then\n'
+        '  echo "missing GH_TOKEN handoff" >&2\n'
+        "  exit 42\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    uv.chmod(0o755)
+    env = {
+        "PATH": str(bin_dir),
+        "CODEX_CI": "1",
+        "UV_CACHE_DIR": str(tmp_path / ".cache" / "uv"),
+        "CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP": "1",
+    }
+
+    result = subprocess.run(
+        [str(repo / "scripts" / "live-e2e.sh")],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_live_workflow_simulates_codex_cloud_setup_only_secret() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "live.yml").read_text(encoding="utf-8")
+
+    assert 'CODEX_CI: "1"' in workflow
+    assert "scripts/session-setup.sh" in workflow
+    assert "github_token_present=yes" in workflow
+    assert "github_token_persisted=yes" in workflow
+    assert (
+        "env -u GH_TOKEN -u GITHUB_TOKEN -u GITHUB_PAT "
+        "-u GITHUB_PERSONAL_ACCESS_TOKEN scripts/live-e2e.sh"
+    ) in workflow
 
 
 def test_local_skill_install_uses_real_gh_skill(tmp_path: Path) -> None:

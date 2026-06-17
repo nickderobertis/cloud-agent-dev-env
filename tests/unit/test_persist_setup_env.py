@@ -14,20 +14,27 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(persist_setup_env)
 
 
-def test_persist_github_token_writes_ignored_env_file(tmp_path: Path) -> None:
+def test_persist_github_token_writes_agent_phase_env_files(tmp_path: Path) -> None:
     home = tmp_path / "home"
     env = {"CODEX_CI": "1", "GH_TOKEN": "ghp_secret", "HOME": str(home)}
 
     wrote = persist_setup_env.persist_github_token(tmp_path, env)
 
     env_file = tmp_path / ".env"
+    local_state_env_file = tmp_path / ".local" / "state" / "cloud-agent-dev-env.env"
+    status_file = tmp_path / ".local" / "state" / "setup-env-status.txt"
     parent_env_file = tmp_path.parent / ".cloud-agent-dev-env.env"
     home_env_file = home / ".cloud-agent-dev-env.env"
     assert wrote is True
     assert env_file.read_text(encoding="utf-8") == "GH_TOKEN='ghp_secret'\n"
+    assert local_state_env_file.read_text(encoding="utf-8") == (
+        "GH_TOKEN='ghp_secret'\n"
+    )
     assert parent_env_file.read_text(encoding="utf-8") == "GH_TOKEN='ghp_secret'\n"
     assert home_env_file.read_text(encoding="utf-8") == "GH_TOKEN='ghp_secret'\n"
+    assert "github_token_persisted=yes" in status_file.read_text(encoding="utf-8")
     assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
+    assert stat.S_IMODE(local_state_env_file.stat().st_mode) == 0o600
     assert stat.S_IMODE(parent_env_file.stat().st_mode) == 0o600
     assert stat.S_IMODE(home_env_file.stat().st_mode) == 0o600
 
@@ -44,9 +51,22 @@ def test_persist_github_token_replaces_existing_token_lines(tmp_path: Path) -> N
     )
 
     assert env_file.read_text(encoding="utf-8") == ("PLAIN=value\nGH_TOKEN='new_pat'\n")
+    assert (tmp_path / ".local" / "state" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='new_pat'\n"
     assert (tmp_path.parent / ".cloud-agent-dev-env.env").read_text(
         encoding="utf-8"
     ) == "GH_TOKEN='new_pat'\n"
+
+
+def test_persist_github_token_writes_status_when_token_missing(tmp_path: Path) -> None:
+    assert persist_setup_env.persist_github_token(tmp_path, {"CODEX_CI": "1"}) is False
+
+    status = (tmp_path / ".local" / "state" / "setup-env-status.txt").read_text(
+        encoding="utf-8"
+    )
+    assert "github_token_present=no" in status
+    assert "github_token_persisted=no" in status
 
 
 def test_persist_github_token_skips_non_cloud_and_disabled(tmp_path: Path) -> None:

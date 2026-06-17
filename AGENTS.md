@@ -55,12 +55,16 @@ Use `just`; do not hand-roll equivalent commands.
   this repo sets `GH_CONFIG_DIR` to `.local/gh` in Codex Cloud so setup and the
   later agent phase share the same GitHub CLI auth files and do not silently use
   Codex Cloud's checkout credential. Setup also writes the
-  GitHub token to ignored `.env` with `0600` permissions so direct agent commands
-  can read it after setup-only cloud secrets are removed; it also writes
-  `.cloud-agent-dev-env.env` in the workspace parent and in `$HOME` because Codex
-  Cloud may replace the repo checkout between setup and the agent phase. If
-  credentials change, save the Codex Cloud environment and reset/invalidate the
-  cache so setup runs again.
+  GitHub token to `.local/state/cloud-agent-dev-env.env` with `0600`
+  permissions so direct agent commands can read it after setup-only cloud
+  secrets are removed. It also writes fallback copies to ignored `.env`,
+  `.cloud-agent-dev-env.env` in the workspace parent, and `$HOME` because Codex
+  Cloud may replace parts of the checkout between setup and the agent phase.
+  Setup writes non-secret handoff diagnostics to
+  `.local/state/setup-env-status.txt`. Never stage `.local/` or
+  `.cloud-agent-dev-env.env`; they may contain credentials. If credentials
+  change, save the Codex Cloud environment and reset/invalidate the cache so
+  setup runs again.
 - Hooks stay non-blocking: a missing token or network failure should warn and
   let the agent session continue. Strict real-environment failures belong in
   explicit checks such as `just live-e2e`.
@@ -74,11 +78,13 @@ Use `just`; do not hand-roll equivalent commands.
   files.
 - Live tests use real boundaries: `gh` against GitHub, `gh skill install` against
   the real skills repo, and `oneharness` detection for Claude Code and Codex.
-  CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, so
-  missing required CLIs bootstrap first; missing credentials or real service
-  failures fail. Keep GitHub auth validation in the Python CLI, not as a shell
-  env-only precheck, so setup-persisted `gh` auth and non-cloud token env vars
-  both work.
+  CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, and
+  the live job must simulate Codex Cloud by running `scripts/session-setup.sh`
+  with `GH_TOKEN` and then unsetting all GitHub token env vars before the direct
+  live script. Missing required CLIs bootstrap first; missing credentials or
+  real service failures fail. Keep GitHub auth validation in the Python CLI, not
+  as a shell env-only precheck, so setup-persisted `gh` auth and non-cloud token
+  env vars both work.
 - Coverage is enforced at 95% line coverage for the Python package.
 
 ## Commits, releases, and merging
