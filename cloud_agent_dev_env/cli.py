@@ -14,6 +14,8 @@ from typing import Any
 from cloud_agent_dev_env import __version__
 
 DEFAULT_SKILLS_REPO = "nickderobertis/dero-skills"
+CURRENT_REPO = "nickderobertis/cloud-agent-dev-env"
+DEFAULT_REQUIRED_PRIVATE_GITHUB_REPOS = ("nickderobertis/gh-secrets-e2e-sandbox",)
 DEFAULT_AGENTS = ("claude-code", "codex")
 TOKEN_ENV_NAMES = (
     "GH_TOKEN",
@@ -292,6 +294,36 @@ def install_skills(
     return specs
 
 
+def check_required_private_github_repos(
+    repos: Sequence[str],
+    *,
+    runner: Runner,
+    root: Path,
+    env: Mapping[str, str],
+) -> None:
+    for repo in repos:
+        if repo == CURRENT_REPO:
+            raise RuntimeError(
+                f"{repo} cannot prove broad GitHub token scope because it is this repo"
+            )
+        result = runner.run(
+            ["gh", "repo", "view", repo, "--json", "nameWithOwner,visibility"],
+            cwd=root,
+            env=env_with_gh_token(env),
+        )
+        if runner.dry_run:
+            continue
+        payload = json.loads(result.stdout)
+        name = payload.get("nameWithOwner") or repo
+        visibility = payload.get("visibility")
+        if visibility == "PUBLIC":
+            raise RuntimeError(
+                f"{name} is public and cannot prove broad GitHub token scope"
+            )
+        if visibility not in {"PRIVATE", "INTERNAL"}:
+            raise RuntimeError(f"{name} has unexpected visibility: {visibility!r}")
+
+
 def setup_allowlists(
     *,
     agents: Sequence[str],
@@ -470,7 +502,16 @@ def live_check(args: argparse.Namespace) -> int:
     root = repo_root_from(args.repo_root)
     env = session_env(root)
     runner = Runner(dry_run=args.dry_run, verbose=args.verbose)
+    required_private_repos = tuple(
+        args.required_private_github_repo or DEFAULT_REQUIRED_PRIVATE_GITHUB_REPOS
+    )
     setup_gh_auth(runner=runner, root=root, env=env)
+    check_required_private_github_repos(
+        required_private_repos,
+        runner=runner,
+        root=root,
+        env=env,
+    )
     runner.run(
         ["gh", "repo", "view", args.skills_repo, "--json", "nameWithOwner"],
         cwd=root,
@@ -530,6 +571,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     live = sub.add_parser("live-check")
     add_common(live)
+    live.add_argument(
+        "--required-private-github-repo",
+        action="append",
+        help=(
+            "private OWNER/NAME repo the token must access to prove it is not "
+            "the checkout credential"
+        ),
+    )
     live.set_defaults(func=live_check)
     return parser
 

@@ -576,6 +576,18 @@ def test_live_check(
         _self: cli.Runner, argv: list[str], **_kwargs: object
     ) -> cli.CommandResult:
         runner_calls.append(tuple(argv))
+        if argv[:4] == ["gh", "repo", "view", "nickderobertis/gh-secrets-e2e-sandbox"]:
+            return cli.CommandResult(
+                tuple(argv),
+                0,
+                json.dumps(
+                    {
+                        "nameWithOwner": "nickderobertis/gh-secrets-e2e-sandbox",
+                        "visibility": "PRIVATE",
+                    }
+                ),
+                "",
+            )
         return cli.CommandResult(tuple(argv), 0, "detected", "")
 
     monkeypatch.setattr(cli.Runner, "run", fake_run)
@@ -594,11 +606,55 @@ def test_live_check(
         "gh",
         "repo",
         "view",
+        "nickderobertis/gh-secrets-e2e-sandbox",
+        "--json",
+        "nameWithOwner,visibility",
+    ) in runner_calls
+    assert (
+        "gh",
+        "repo",
+        "view",
         "nickderobertis/dero-skills",
         "--json",
         "nameWithOwner",
     ) in runner_calls
     assert "live-check: ok" in capsys.readouterr().out
+
+
+def test_check_required_private_github_repos_rejects_current_repo(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(RuntimeError, match="cannot prove broad GitHub token scope"):
+        cli.check_required_private_github_repos(
+            [cli.CURRENT_REPO],
+            runner=cli.Runner(),
+            root=tmp_path,
+            env={},
+        )
+
+
+def test_check_required_private_github_repos_rejects_public_repo(
+    tmp_path: Path,
+) -> None:
+    runner = cli.Runner()
+
+    def fake_run(argv: list[str], **_kwargs: object) -> cli.CommandResult:
+        return cli.CommandResult(
+            tuple(argv),
+            0,
+            json.dumps({"nameWithOwner": "owner/public", "visibility": "PUBLIC"}),
+            "",
+        )
+
+    runner.run = fake_run  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="public and cannot prove"):
+        cli.check_required_private_github_repos(
+            ["owner/public"],
+            runner=runner,
+            root=tmp_path,
+            env={},
+        )
 
 
 def test_parser_defaults_and_main_error(monkeypatch: pytest.MonkeyPatch) -> None:
