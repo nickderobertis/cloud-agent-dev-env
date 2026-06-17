@@ -23,8 +23,11 @@ def test_env_files_do_not_override_existing_values(tmp_path: Path) -> None:
     assert str(tmp_path / ".local" / "bin") in loaded["PATH"]
 
 
-def test_codex_cloud_session_env_uses_repo_local_gh_config(tmp_path: Path) -> None:
-    loaded = cli.session_env(tmp_path, {"CODEX_CI": "1", "PATH": "/usr/bin"})
+@pytest.mark.parametrize("env_key", ["CODEX_CI", "CODEX_THREAD_ID"])
+def test_codex_cloud_session_env_uses_repo_local_gh_config(
+    tmp_path: Path, env_key: str
+) -> None:
+    loaded = cli.session_env(tmp_path, {env_key: "1", "PATH": "/usr/bin"})
 
     assert loaded["GH_CONFIG_DIR"] == str(tmp_path / ".local" / "gh")
 
