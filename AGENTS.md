@@ -52,8 +52,10 @@ Use `just`; do not hand-roll equivalent commands.
 - Codex Cloud secrets are setup-only and are removed before the agent phase. Do
   not expect `GH_TOKEN` to be present when an agent later runs terminal
   commands. Setup must persist `gh` authentication while the secret is available;
-  if credentials change, save the Codex Cloud environment and reset/invalidate
-  the cache so setup runs again.
+  this repo sets `GH_CONFIG_DIR` to `.local/gh` in Codex Cloud so setup and the
+  later agent phase share the same GitHub CLI auth files. If credentials change,
+  save the Codex Cloud environment and reset/invalidate the cache so setup runs
+  again.
 - Hooks stay non-blocking: a missing token or network failure should warn and
   let the agent session continue. Strict real-environment failures belong in
   explicit checks such as `just live-e2e`.

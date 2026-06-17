@@ -8,9 +8,12 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-gh-auth-persist"
+export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-gh-config-dir"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
 export PATH="$ROOT/.local/bin:$PATH"
+if [ -n "${CODEX_CI:-}" ]; then
+    export GH_CONFIG_DIR="${GH_CONFIG_DIR:-$ROOT/.local/gh}"
+fi
 
 if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
     if command -v python3 >/dev/null 2>&1; then
