@@ -49,6 +49,11 @@ Use `just`; do not hand-roll equivalent commands.
   `GITHUB_PAT`, or `GITHUB_PERSONAL_ACCESS_TOKEN`; installs skills from
   `nickderobertis/dero-skills` for Claude Code and Codex; and registers local
   allowlister hooks for both.
+- Codex Cloud secrets are setup-only and are removed before the agent phase. Do
+  not expect `GH_TOKEN` to be present when an agent later runs terminal
+  commands. Setup must persist `gh` authentication while the secret is available;
+  if credentials change, save the Codex Cloud environment and reset/invalidate
+  the cache so setup runs again.
 - Hooks stay non-blocking: a missing token or network failure should warn and
   let the agent session continue. Strict real-environment failures belong in
   explicit checks such as `just live-e2e`.
@@ -63,7 +68,8 @@ Use `just`; do not hand-roll equivalent commands.
   CI must invoke `scripts/live-e2e.sh` directly without preinstalling `just`, so
   missing required CLIs bootstrap first; missing credentials or real service
   failures fail. Keep GitHub auth validation in the Python CLI, not as a shell
-  env-only precheck, so Codex Cloud secrets and pre-authenticated `gh` both work.
+  env-only precheck, so setup-persisted `gh` auth and non-cloud token env vars
+  both work.
 - Coverage is enforced at 95% line coverage for the Python package.
 
 ## Commits, releases, and merging

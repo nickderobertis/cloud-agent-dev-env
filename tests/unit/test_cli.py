@@ -28,6 +28,7 @@ def test_github_token_priority() -> None:
     assert cli.github_token({"GITHUB_PAT": "c"}) == "c"
     assert cli.github_token({}) is None
     assert cli.env_with_gh_token({"GITHUB_PAT": "c"})["GH_TOKEN"] == "c"
+    assert "GITHUB_PAT" not in cli.env_without_gh_token({"GITHUB_PAT": "c"})
 
 
 def test_local_skill_specs_discovers_namespaced_skills(tmp_path: Path) -> None:
@@ -289,7 +290,7 @@ def test_install_skills_local_without_force_and_empty_specs(
 def test_setup_gh_auth_uses_token_without_printing_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    calls: list[tuple[tuple[str, ...], str | None]] = []
+    calls: list[tuple[tuple[str, ...], str | None, dict[str, str]]] = []
     runner = cli.Runner()
 
     monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
@@ -298,9 +299,10 @@ def test_setup_gh_auth_uses_token_without_printing_it(
         argv: list[str],
         *,
         input_text: str | None = None,
+        env: dict[str, str] | None = None,
         **_kwargs: object,
     ) -> cli.CommandResult:
-        calls.append((tuple(argv), input_text))
+        calls.append((tuple(argv), input_text, dict(env or {})))
         if argv == ["gh", "auth", "status"]:
             return cli.CommandResult(tuple(argv), 1, "", "bad token")
         return cli.CommandResult(tuple(argv), 0, "", "")
@@ -309,7 +311,45 @@ def test_setup_gh_auth_uses_token_without_printing_it(
 
     cli.setup_gh_auth(runner=runner, root=tmp_path, env={"GITHUB_PAT": "secret"})
 
-    assert calls[1] == (("gh", "auth", "login", "--with-token"), "secret")
+    assert calls[0][0] == ("gh", "auth", "status")
+    assert "GITHUB_PAT" not in calls[0][2]
+    assert calls[1] == (("gh", "auth", "login", "--with-token"), "secret", {})
+    assert calls[2] == (("gh", "auth", "setup-git"), None, {})
+
+
+def test_setup_gh_auth_persists_setup_only_cloud_secret(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    runner = cli.Runner()
+
+    monkeypatch.setattr(cli, "require_tool", lambda name, _env=None: f"/bin/{name}")
+
+    def fake_run(
+        argv: list[str],
+        *,
+        env: dict[str, str] | None = None,
+        input_text: str | None = None,
+        **_kwargs: object,
+    ) -> cli.CommandResult:
+        assert env is not None
+        assert not any(name in env for name in cli.TOKEN_ENV_NAMES)
+        calls.append(tuple(argv))
+        if argv == ["gh", "auth", "status"]:
+            return cli.CommandResult(tuple(argv), 1, "", "not logged in")
+        if argv == ["gh", "auth", "login", "--with-token"]:
+            assert input_text == "setup-only"
+        return cli.CommandResult(tuple(argv), 0, "", "")
+
+    runner.run = fake_run  # type: ignore[method-assign]
+
+    cli.setup_gh_auth(runner=runner, root=tmp_path, env={"GH_TOKEN": "setup-only"})
+
+    assert calls == [
+        ("gh", "auth", "status"),
+        ("gh", "auth", "login", "--with-token"),
+        ("gh", "auth", "setup-git"),
+    ]
 
 
 def test_setup_gh_auth_errors_without_token(
