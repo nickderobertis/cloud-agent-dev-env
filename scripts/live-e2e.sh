@@ -6,7 +6,7 @@ cd "$ROOT"
 
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
 export PATH="$ROOT/.local/bin:$PATH"
-if [ -n "${CODEX_CI:-}" ]; then
+if [ -n "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ]; then
     export GH_CONFIG_DIR="${GH_CONFIG_DIR:-$ROOT/.local/gh}"
 fi
 

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ -n "${CI:-}" ] && [ "${CLOUD_AGENT_DEV_ENV_RUN_IN_CI:-0}" != "1" ]; then
+if [ -n "${CI:-}" ] && [ -z "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ] && [ "${CLOUD_AGENT_DEV_ENV_RUN_IN_CI:-0}" != "1" ]; then
     exit 0
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-gh-config-dir"
+export CLOUD_AGENT_DEV_ENV_SETUP_CONTRACT="2026-06-17-run-in-codex-cloud"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$ROOT/.cache/uv}"
 export PATH="$ROOT/.local/bin:$PATH"
-if [ -n "${CODEX_CI:-}" ]; then
+if [ -n "${CODEX_CI:-}${CODEX_THREAD_ID:-}" ]; then
     export GH_CONFIG_DIR="${GH_CONFIG_DIR:-$ROOT/.local/gh}"
 fi
 

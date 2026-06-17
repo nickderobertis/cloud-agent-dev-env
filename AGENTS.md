@@ -59,6 +59,8 @@ Use `just`; do not hand-roll equivalent commands.
 - Hooks stay non-blocking: a missing token or network failure should warn and
   let the agent session continue. Strict real-environment failures belong in
   explicit checks such as `just live-e2e`.
+- The startup hook may skip ordinary CI, but it must not skip Codex Cloud. Codex
+  Cloud is the production setup path that receives setup-only secrets.
 
 ## Quality and tests
 

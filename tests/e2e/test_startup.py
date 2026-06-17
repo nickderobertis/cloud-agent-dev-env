@@ -66,6 +66,66 @@ def test_session_startup_dry_run_is_clean() -> None:
     assert "ERROR" not in result.stderr
 
 
+def test_session_setup_skips_plain_ci(tmp_path: Path) -> None:
+    marker = tmp_path / "uv-ran"
+    bin_dir = minimal_path(tmp_path)
+    uv = bin_dir / "uv"
+    uv.write_text(
+        '#!/usr/bin/env bash\nprintf ran > "$SESSION_SETUP_MARKER"\n',
+        encoding="utf-8",
+    )
+    uv.chmod(0o755)
+    env = {
+        "PATH": str(bin_dir),
+        "CI": "1",
+        "SESSION_SETUP_MARKER": str(marker),
+        "CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP": "1",
+    }
+
+    result = subprocess.run(
+        [str(ROOT / "scripts" / "session-setup.sh"), "--dry-run"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not marker.exists()
+
+
+def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
+    marker = tmp_path / "uv-ran"
+    bin_dir = minimal_path(tmp_path)
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf \'%s\' "$GH_CONFIG_DIR" > "$SESSION_SETUP_MARKER"\n',
+        encoding="utf-8",
+    )
+    uv.chmod(0o755)
+    env = {
+        "PATH": str(bin_dir),
+        "CI": "1",
+        "CODEX_CI": "1",
+        "SESSION_SETUP_MARKER": str(marker),
+        "CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP": "1",
+    }
+
+    result = subprocess.run(
+        [str(ROOT / "scripts" / "session-setup.sh"), "--dry-run"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert marker.read_text(encoding="utf-8") == str(ROOT / ".local" / "gh")
+
+
 def test_live_e2e_fails_when_just_is_missing(tmp_path: Path) -> None:
     result = run_live_e2e_with_path(
         minimal_path(tmp_path, tools=("gh", "allowlister", "oneharness"))
