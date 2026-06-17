@@ -23,6 +23,17 @@ def test_env_files_do_not_override_existing_values(tmp_path: Path) -> None:
     assert str(tmp_path / ".local" / "bin") in loaded["PATH"]
 
 
+def test_session_env_loads_hidden_git_env_before_ignored_env(tmp_path: Path) -> None:
+    git_env = tmp_path / ".git" / "cloud-agent-dev-env.env"
+    git_env.parent.mkdir()
+    git_env.write_text("GH_TOKEN=from-git-env\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("GH_TOKEN=from-env\n", encoding="utf-8")
+
+    loaded = cli.session_env(tmp_path, {"PATH": "/usr/bin"})
+
+    assert loaded["GH_TOKEN"] == "from-git-env"
+
+
 @pytest.mark.parametrize("env_key", ["CODEX_CI", "CODEX_THREAD_ID"])
 def test_codex_cloud_session_env_uses_repo_local_gh_config(
     tmp_path: Path, env_key: str

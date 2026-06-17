@@ -20,9 +20,12 @@ def test_persist_github_token_writes_ignored_env_file(tmp_path: Path) -> None:
     wrote = persist_setup_env.persist_github_token(tmp_path, env)
 
     env_file = tmp_path / ".env"
+    git_env_file = tmp_path / ".git" / "cloud-agent-dev-env.env"
     assert wrote is True
     assert env_file.read_text(encoding="utf-8") == "GH_TOKEN='ghp_secret'\n"
+    assert git_env_file.read_text(encoding="utf-8") == "GH_TOKEN='ghp_secret'\n"
     assert stat.S_IMODE(env_file.stat().st_mode) == 0o600
+    assert stat.S_IMODE(git_env_file.stat().st_mode) == 0o600
 
 
 def test_persist_github_token_replaces_existing_token_lines(tmp_path: Path) -> None:
@@ -37,6 +40,9 @@ def test_persist_github_token_replaces_existing_token_lines(tmp_path: Path) -> N
     )
 
     assert env_file.read_text(encoding="utf-8") == ("PLAIN=value\nGH_TOKEN='new_pat'\n")
+    assert (tmp_path / ".git" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='new_pat'\n"
 
 
 def test_persist_github_token_skips_non_cloud_and_disabled(tmp_path: Path) -> None:

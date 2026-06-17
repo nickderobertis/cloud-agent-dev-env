@@ -46,12 +46,14 @@ setup path therefore logs `gh` in from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`,
 or `GITHUB_PERSONAL_ACCESS_TOKEN` and persists the auth state for later direct
 agent commands such as `scripts/live-e2e.sh`. In Codex Cloud, `GH_CONFIG_DIR`
 is set to `.local/gh` so setup and the later agent phase read the same persisted
-GitHub CLI auth files. Setup also writes the GitHub token to ignored `.env`
-with `0600` permissions so later direct agent commands can recover from
-setup-only cloud secret removal. If a cloud task cannot authenticate after
-adding or changing a secret, save the environment and reset the container cache
-so setup runs again. Missing credentials, authentication failures, or API
-failures fail there.
+GitHub CLI auth files. Setup also writes the GitHub token with `0600`
+permissions to ignored `.env` and to `.git/cloud-agent-dev-env.env`. The hidden
+`.git` copy survives cloud cleanup of ignored working-tree files, while staying
+out of PR diffs, so later direct agent commands can recover from setup-only
+cloud secret removal. If a cloud task cannot authenticate after adding or
+changing a secret, save the environment and reset the container cache so setup
+runs again. Missing credentials, authentication failures, or API failures fail
+there.
 
 ## Secrets
 

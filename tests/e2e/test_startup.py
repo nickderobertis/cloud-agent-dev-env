@@ -137,6 +137,9 @@ def test_session_setup_runs_in_codex_cloud_ci(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert marker.read_text(encoding="utf-8") == str(repo / ".local" / "gh")
     assert (repo / ".env").read_text(encoding="utf-8") == "GH_TOKEN='ghp_test_secret'\n"
+    assert (repo / ".git" / "cloud-agent-dev-env.env").read_text(
+        encoding="utf-8"
+    ) == "GH_TOKEN='ghp_test_secret'\n"
 
 
 def test_live_e2e_fails_when_just_is_missing(tmp_path: Path) -> None:
