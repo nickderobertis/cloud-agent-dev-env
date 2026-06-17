@@ -123,6 +123,13 @@ def github_token(env: Mapping[str, str]) -> str | None:
     return None
 
 
+def env_without_gh_token(env: Mapping[str, str]) -> dict[str, str]:
+    out = dict(env)
+    for name in TOKEN_ENV_NAMES:
+        out.pop(name, None)
+    return out
+
+
 def env_with_gh_token(env: Mapping[str, str]) -> dict[str, str]:
     out = dict(env)
     token = github_token(out)
@@ -156,29 +163,32 @@ def ensure_optional_tool(
 
 def setup_gh_auth(*, runner: Runner, root: Path, env: Mapping[str, str]) -> None:
     require_tool("gh", env)
-    gh_env = env_with_gh_token(env)
+    persisted_auth_env = env_without_gh_token(env)
     status = runner.run(
         ["gh", "auth", "status"],
         cwd=root,
-        env=gh_env,
+        env=persisted_auth_env,
         check=False,
     )
     if status.returncode == 0:
         return
 
-    token = github_token(gh_env)
+    token = github_token(env)
     if not token:
         raise RuntimeError(
-            "gh is not authenticated and no GitHub token env var is set. "
-            "Set GH_TOKEN, GITHUB_TOKEN, GITHUB_PAT, or GITHUB_PERSONAL_ACCESS_TOKEN."
+            "gh is not authenticated and no GitHub token is available. "
+            "Set GH_TOKEN, GITHUB_TOKEN, GITHUB_PAT, or "
+            "GITHUB_PERSONAL_ACCESS_TOKEN. In Codex Cloud, configure the token as "
+            "a secret or environment variable and reset the cache so setup can "
+            "persist gh authentication before the agent phase."
         )
     runner.run(
         ["gh", "auth", "login", "--with-token"],
         cwd=root,
-        env=gh_env,
+        env=persisted_auth_env,
         input_text=token,
     )
-    runner.run(["gh", "auth", "setup-git"], cwd=root, env=gh_env)
+    runner.run(["gh", "auth", "setup-git"], cwd=root, env=persisted_auth_env)
 
 
 def is_local_repo(repo: str) -> bool:

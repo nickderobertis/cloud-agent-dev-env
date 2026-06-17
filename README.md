@@ -40,10 +40,14 @@ just live-e2e
 ```
 
 That uses the real `gh` CLI, `gh skill install`, and `oneharness`. It bootstraps
-missing required CLIs first. Codex Cloud secrets named `GH_TOKEN` are expected
-to appear as normal environment variables, but the shell wrapper delegates auth
-validation to the CLI so pre-authenticated `gh` also works. Missing credentials,
-authentication failures, or API failures fail there.
+missing required CLIs first. In Codex Cloud, secrets are setup-only: they are
+available to `scripts/session-setup.sh` and removed before the agent phase. The
+setup path therefore logs `gh` in from `GH_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PAT`,
+or `GITHUB_PERSONAL_ACCESS_TOKEN` and persists the auth state for later direct
+agent commands such as `scripts/live-e2e.sh`. If a cloud task cannot authenticate
+after adding or changing a secret, save the environment and reset the container
+cache so setup runs again. Missing credentials, authentication failures, or API
+failures fail there.
 
 ## Secrets
 
