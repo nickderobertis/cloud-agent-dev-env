@@ -32,13 +32,24 @@ Use `just`; do not hand-roll equivalent commands.
 - `just setup-session` runs the same startup path the agent hooks call.
 - `just secrets-sync` syncs the repo secret manifest with `gh-secrets`.
 
+## Default work target
+
+- By default, assume the user's task is for a different project than this
+  repository, using the target project the user specifies. Clone, enter, or
+  otherwise operate in that target project, and put the branch, commit, and PR
+  there.
+- Only change files in this checked-out `cloud-agent-dev-env` repository when
+  the user explicitly points the task at this repository or asks to change this
+  development environment itself.
+- Changes made in other projects must not refer to `cloud-agent-dev-env`; this
+  repository is only the development environment used to make those changes.
+
 ## What this repo may change
 
 - This repo may change its startup scripts, tests, docs, CI, and repo setup.
 - Do not open product-feature PRs against this repo. Use it to work in other
   repositories, create new repositories, or publish PRs in those repositories.
-- When a task targets another repo, clone or enter that repo and put the branch,
-  commit, and PR there.
+- When a task explicitly targets this repo, put the branch, commit, and PR here.
 
 ## Startup contract
 
