@@ -427,7 +427,7 @@ def test_setup_gh_auth_returns_when_already_authenticated(
 
     runner.run = fake_run  # type: ignore[method-assign]
     cli.setup_gh_auth(runner=runner, root=tmp_path, env={})
-    assert calls == [("gh", "auth", "status")]
+    assert calls == [("gh", "auth", "status"), ("gh", "auth", "setup-git")]
 
 
 def test_setup_allowlists_and_tools_and_detect(

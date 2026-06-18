@@ -33,6 +33,7 @@ def minimal_path(tmp_path: Path, *, tools: tuple[str, ...] = ()) -> Path:
 
 
 def run_live_e2e_with_path(path: Path) -> subprocess.CompletedProcess[str]:
+    repo = copy_live_e2e_script(path.parent)
     env = {
         "PATH": str(path),
         "UV_CACHE_DIR": str(ROOT / ".cache" / "uv"),
@@ -40,8 +41,8 @@ def run_live_e2e_with_path(path: Path) -> subprocess.CompletedProcess[str]:
         "CLOUD_AGENT_DEV_ENV_SKIP_ENV_FILE": "1",
     }
     return subprocess.run(
-        [str(ROOT / "scripts" / "live-e2e.sh")],
-        cwd=ROOT,
+        [str(repo / "scripts" / "live-e2e.sh")],
+        cwd=repo,
         env=env,
         text=True,
         capture_output=True,
@@ -214,6 +215,74 @@ def test_session_setup_persists_token_before_codex_agent_markers(
     )
     assert "github_token_present=yes" in status
     assert "github_token_persisted=yes" in status
+
+
+def test_installed_setup_runs_gh_setup_git_for_push_credentials(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    gh_log = tmp_path / "gh.log"
+    gh = bin_dir / "gh"
+    gh.write_text(
+        "#!/usr/bin/env bash\n"
+        'printf \'%s\\n\' "$*" >> "$GH_LOG"\n'
+        'if [ "$1 $2 $3" = "auth login --with-token" ]; then\n'
+        "  cat >/dev/null\n"
+        "fi\n"
+        'if [ "$1 $2" = "auth status" ]; then\n'
+        "  exit 1\n"
+        "fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    gh.chmod(0o755)
+    gh_config_dir = repo / ".local" / "gh"
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": str(bin_dir) + os.pathsep + env.get("PATH", ""),
+            "GH_CONFIG_DIR": str(gh_config_dir),
+            "GH_TOKEN": "setup-only-token",
+            "GH_LOG": str(gh_log),
+            "UV_CACHE_DIR": str(ROOT / ".cache" / "uv"),
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "cloud-agent-dev-env",
+            "setup",
+            "--repo-root",
+            str(repo),
+            "--quiet",
+            "--skip",
+            "tools",
+            "--skip",
+            "allowlists",
+            "--skip",
+            "skills",
+            "--skip",
+            "harness",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert gh_log.read_text(encoding="utf-8").splitlines() == [
+        "auth status",
+        "auth login --with-token",
+        "auth setup-git",
+    ]
+    assert gh_config_dir.is_dir()
 
 
 def test_live_e2e_fails_when_just_is_missing(tmp_path: Path) -> None:

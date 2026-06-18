@@ -185,6 +185,7 @@ def setup_gh_auth(*, runner: Runner, root: Path, env: Mapping[str, str]) -> None
         check=False,
     )
     if status.returncode == 0:
+        runner.run(["gh", "auth", "setup-git"], cwd=root, env=persisted_auth_env)
         return
 
     token = github_token(env)
