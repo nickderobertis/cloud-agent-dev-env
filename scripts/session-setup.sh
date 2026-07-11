@@ -21,6 +21,7 @@ else
     echo "WARNING: python3 is required to persist setup GitHub token" >&2
 fi
 
+# bootstrap_tools.py installs missing `just`, gh, allowlister, and oneharness into .local/bin.
 if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
     if command -v python3 >/dev/null 2>&1; then
         python3 "$ROOT/scripts/bootstrap_tools.py" --repo-root "$ROOT" --quiet || {
@@ -29,6 +30,10 @@ if [ "${CLOUD_AGENT_DEV_ENV_SKIP_TOOL_BOOTSTRAP:-0}" != "1" ]; then
     else
         echo "WARNING: python3 is required to install missing tools automatically" >&2
     fi
+fi
+
+if [ -x "$ROOT/scripts/setup-llmlint.sh" ]; then
+    "$ROOT/scripts/setup-llmlint.sh" || echo "WARNING: llmlint setup failed; continuing" >&2
 fi
 
 if ! command -v uv >/dev/null 2>&1; then

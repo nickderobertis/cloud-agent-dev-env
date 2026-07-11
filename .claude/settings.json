@@ -26,7 +26,7 @@
       {
         "hooks": [
           {
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/scripts/session-setup.sh\"",
             "timeout": 120,
             "type": "command"
           }
@@ -40,6 +40,12 @@
       "Bash(just:*)",
       "Bash(uv run cloud-agent-dev-env:*)",
       "Bash(scripts/session-setup.sh:*)",
+      "Bash(scripts/setup-llmlint.sh)",
+      "Bash(llmlint:*)",
+      "Bash(just lint-llm-validate:*)",
+      "Bash(just lint-llm-diff:*)",
+      "Bash(just lint-llm:*)",
+      "Bash(just setup-llmlint)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

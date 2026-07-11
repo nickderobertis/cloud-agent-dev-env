@@ -58,3 +58,18 @@ doctor:
 
 bootstrap-tools:
     python3 scripts/bootstrap_tools.py
+
+setup-llmlint:
+    scripts/setup-llmlint.sh
+
+# Optional LLM-as-judge lint; non-deterministic and out of `check`.
+lint-llm *paths:
+    llmlint {{paths}}
+
+# Deterministic llmlint config/ignore/version-bump validation.
+lint-llm-validate *args:
+    PATH="$HOME/.local/bin:$PATH" llmlint validate {{args}}
+
+# llmlint scoped to changed files since the merge-base with main.
+lint-llm-diff base="origin/main" *args:
+    llmlint --diff --diff-base "{{base}}" {{args}}
