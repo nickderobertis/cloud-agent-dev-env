@@ -61,5 +61,6 @@ jobs:
             echo "::error::llmlint needs OPENAI_API_KEY for the Codex harness" >&2
             exit 1
           fi
+          npm install -g @openai/codex
           just lint-llm-diff origin/main
 
