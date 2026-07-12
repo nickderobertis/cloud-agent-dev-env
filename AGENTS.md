@@ -101,6 +101,12 @@ Use `just`; do not hand-roll equivalent commands.
   env vars both work.
 - Coverage is enforced at 95% line coverage for the Python package.
 
+## Handoffs
+
+- Always include direct links for anything the user may want to verify: PRs,
+  issues, deployments, workflow runs, preview URLs, dashboards, logs, or other
+  external artifacts.
+
 ## Commits, releases, and merging
 
 - Main is protected and only takes squash-merged PRs. Branch protection requires
