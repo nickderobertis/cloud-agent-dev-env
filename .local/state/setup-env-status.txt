@@ -1,0 +1,3 @@
+codex_cloud_setup_token_persistence=1
+github_token_present=no
+github_token_persisted=no
