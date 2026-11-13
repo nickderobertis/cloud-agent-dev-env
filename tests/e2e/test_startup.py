@@ -365,6 +365,53 @@ def test_live_workflow_simulates_codex_cloud_setup_only_secret() -> None:
     ) in workflow
 
 
+def _workflow_triggers(workflow: str) -> dict[str, list[str]]:
+    """Map each block-form ``on:`` event to its sub-config lines."""
+    lines = workflow.splitlines()
+    start = lines.index("on:")
+    triggers: dict[str, list[str]] = {}
+    event: str | None = None
+    for line in lines[start + 1 :]:
+        if not line.strip():
+            continue
+        if not line.startswith(" "):
+            break
+        if line.startswith("  ") and not line.startswith("   "):
+            key, sep, rest = line.strip().partition(":")
+            assert sep and not rest.strip(), f"unsupported on: entry {line!r}"
+            event = key
+            triggers[event] = []
+        else:
+            assert event is not None, f"orphan on: line {line!r}"
+            triggers[event].append(line.strip())
+    return triggers
+
+
+def _workflow_selected(
+    triggers: dict[str, list[str]], event: str, branch: str | None = None
+) -> bool:
+    if event not in triggers:
+        return False
+    for entry in triggers[event]:
+        key, _, value = entry.partition(":")
+        if key == "branches":
+            branches = [b.strip() for b in value.strip().strip("[]").split(",")]
+            return branch in branches
+    return True
+
+
+def test_live_workflow_runs_only_on_pull_requests_and_main_pushes() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "live.yml").read_text(encoding="utf-8")
+    triggers = _workflow_triggers(workflow)
+
+    assert set(triggers) == {"pull_request", "push"}
+    assert _workflow_selected(triggers, "pull_request")
+    assert _workflow_selected(triggers, "push", branch="main")
+    assert not _workflow_selected(triggers, "push", branch="feature")
+    assert not _workflow_selected(triggers, "schedule")
+    assert not _workflow_selected(triggers, "workflow_dispatch")
+
+
 def test_local_skill_install_uses_real_gh_skill(tmp_path: Path) -> None:
     skills_repo = tmp_path / "skills-src"
     skill = skills_repo / "skills" / "bootstrap" / "demo-skill"
